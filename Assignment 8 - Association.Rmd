@@ -1,0 +1,110 @@
+---
+title: "Assignment 8 - Association Mining"
+output: pdf_document
+date: "2024-08-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Library and reading the dataset}
+# Load necessary libraries
+library(tidyverse)
+library(igraph)
+library(arules)
+library(arulesViz)
+
+# Read in grocery data
+baskets <- read.transactions("groceries.txt", 
+                             format = "basket", sep = ",")
+
+```
+
+```{r Data structure and summary}
+# Check the structure and summary of the transaction data
+str(baskets)
+summary(baskets)
+
+```
+
+```{r plot}
+# Barplot of the top 20 items
+itemFrequencyPlot(baskets, topN = 20, type = "absolute", main = "Top 20 Items in Grocery Baskets")
+
+```
+
+```{r}
+# Now run the 'apriori' algorithm
+# Look at rules with support > 0.005 & confidence > 0.1 & length (# items) <= 4
+grocery_rules <- apriori(baskets, 
+                         parameter = list(support = 0.005, confidence = 0.1, maxlen = 4))
+
+inspect(grocery_rules)
+
+# Choose a subset with higher lift and confidence
+inspect(subset(grocery_rules, subset = lift > 5))
+inspect(subset(grocery_rules, subset = confidence > 0.6))
+inspect(subset(grocery_rules, subset = lift > 10 & confidence > 0.5))
+
+# Plot all the rules in (support, confidence) space
+plot(grocery_rules)
+
+# Swap the axes and color scales to see different relationships
+plot(grocery_rules, measure = c("support", "lift"), shading = "confidence")
+
+# "Two-key" plot: coloring is by size (order) of item set
+plot(grocery_rules, method = 'two-key plot')
+
+```
+## Summary of Association Rules Analysis:
+
+	•	Support vs. Confidence: Most rules have low support and varying confidence, reflecting the choice of a support threshold (0.005) to capture relevant but less frequent itemsets, and a confidence threshold (0.1) to include rules with a reasonable likelihood of occurrence.
+	•	Lift Insights: High-lift rules, though rare, highlight strong associations that are more predictive than random chance, justifying the focus on rules with higher lift for actionable insights.
+	•	Order and Complexity: Simpler rules (fewer items) are more common and have higher support, while more complex rules (higher order) are rarer but can offer stronger associations. The selected thresholds help balance the discovery of significant rules with practical relevance.
+	•	Practical Focus: By targeting rules with balanced support, confidence, and lift, particularly those with high lift and confidence, we ensure the findings are both meaningful and actionable.
+
+
+
+```{r}
+# Graph-based visualization
+# Associations are represented as edges; for rules, each item in the LHS is connected
+# with a directed edge to the item in the RHS.
+grocery_graph <- associations2igraph(subset(grocery_rules, lift > 4), associationsAsNodes = FALSE)
+igraph::write_graph(grocery_graph, file = 'grocery_baskets.graphml', format = "graphml")
+
+```
+
+```{r}
+# Filter the rules where support is greater than 0.1
+rules_high_support <- subset(grocery_rules, subset = support > 0.1)
+
+# Inspect the filtered rules
+inspect(rules_high_support)
+
+
+# Plot the filtered rules
+plot(rules_high_support)
+
+# Swap the axes and color scales to see different relationships
+plot(rules_high_support, measure = c("support", "lift"), shading = "confidence")
+
+# "Two-key" plot: coloring is by size (order) of item set
+plot(rules_high_support, method = 'two-key plot')
+
+```
+## Filtering Process:
+
+The final rules were filtered based on:
+
+	1.	Support > 0.1: Focused on itemsets appearing in at least 10% of transactions to ensure relevance.
+	2.	No explicit confidence filtering: Confidence was not directly filtered but is analyzed in the context of the generated rules.
+
+Summary of the Final Filtered Plots:
+
+	•	Support vs. Confidence: The rules have moderate support (0.10-0.25) and a range of confidence values, reflecting co-occurrences that are frequent in the dataset but vary in reliability.
+	•	Lift: All rules show lift values near 1, indicating these associations occur together by chance rather than strong dependence.
+	•	Order: All are single-item rules, ensuring simplicity and interpretability.
+
+Insight: The filtering identified common itemsets that frequently co-occur, but the near-neutral lift suggests these are routine patterns with limited predictive value. Further refinement may be necessary to find stronger, more actionable associations.
+
